@@ -1,0 +1,33 @@
+{
+  "name": "pi-ext-splitview",
+  "version": "0.1.0",
+  "description": "Pi extension - split view mode for browsing conversation history while composing",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "clean": "echo 'nothing to clean'",
+    "build": "echo 'nothing to build'",
+    "check": "echo 'nothing to check'"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*",
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-agent-core": "*"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "extension",
+    "split-view",
+    "scrollback",
+    "history"
+  ],
+  "author": "",
+  "license": "MIT"
+}
