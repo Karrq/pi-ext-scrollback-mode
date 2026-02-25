@@ -1,14 +1,14 @@
 /**
- * Split View Extension
+ * Scrollback Mode Extension
  *
- * Adds a split view mode for browsing conversation history while composing
+ * Adds a scrollback mode for browsing conversation history while composing
  * the next message. Toggle with a keyboard shortcut to enter a split layout:
  * scrollable history pane on top, editor at the bottom.
  *
  * Uses the same rendering components as the main chat for identical appearance.
  *
  * Usage:
- *   pi -e pi-ext-splitview
+ *   pi -e pi-ext-scrollback-mode
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
@@ -19,15 +19,15 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import { Key } from "@mariozechner/pi-tui";
 import type { EditorTheme } from "@mariozechner/pi-tui";
-import { SplitViewContainer } from "./src/split-view-container.js";
+import { ScrollbackContainer } from "./src/scrollback-container.js";
 import { HistoryPane } from "./src/history-pane.js";
 
-export default function splitViewExtension(pi: ExtensionAPI) {
-	// Register ctrl+shift+h shortcut to toggle split view
+export default function scrollbackModeExtension(pi: ExtensionAPI) {
+	// Register ctrl+shift+h shortcut to toggle scrollback mode
 	pi.registerShortcut(Key.ctrlShift("h"), {
-		description: "Toggle split view",
+		description: "Toggle scrollback mode",
 		handler: async (ctx) => {
-			// Only open split view when agent is idle
+			// Only open scrollback mode when agent is idle
 			if (!ctx.isIdle()) {
 				return;
 			}
@@ -49,7 +49,7 @@ export default function splitViewExtension(pi: ExtensionAPI) {
 			// Capture TUI reference for triggering render after text restore
 			let tuiRef: import("@mariozechner/pi-tui").TUI;
 
-			// Open split view custom UI
+			// Open scrollback mode custom UI
 			const result = await ctx.ui.custom<string>((tui, theme, keybindings, done) => {
 				tuiRef = tui;
 				// Construct EditorTheme manually (getEditorTheme is not exported)
@@ -77,8 +77,8 @@ export default function splitViewExtension(pi: ExtensionAPI) {
 				);
 				historyPane.dimText = (text) => theme.fg("borderMuted", text);
 
-				// Create and return split view container
-				return new SplitViewContainer(historyPane, editor, tui, done, {
+				// Create and return scrollback container
+				return new ScrollbackContainer(historyPane, editor, tui, done, {
 					accentBorderColor: (text) => theme.fg("borderAccent", text),
 					dimBorderColor: (text) => theme.fg("borderMuted", text),
 				});

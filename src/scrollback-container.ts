@@ -1,5 +1,5 @@
 /**
- * Split View Container Component
+ * Scrollback Container Component
  *
  * Orchestrates the two-pane layout: scrollable history pane (top) and editor (bottom).
  * Handles focus management, input routing, and dynamic layout calculations.
@@ -11,7 +11,6 @@ import { CustomEditor } from "@mariozechner/pi-coding-agent";
 
 /**
  * Interface for the History Pane component.
- * The actual implementation is in TODO-096245b2 (src/history-pane.ts).
  */
 export interface HistoryPane extends Component {
 	/**
@@ -39,7 +38,7 @@ export interface HistoryPane extends Component {
 
 export type FocusState = "history" | "editor";
 
-export interface SplitViewContainerOptions {
+export interface ScrollbackContainerOptions {
 	/**
 	 * Border color styling function for the editor.
 	 * Applied based on focus state (accent when focused, dim when not).
@@ -49,7 +48,7 @@ export interface SplitViewContainerOptions {
 }
 
 /**
- * SplitViewContainer - Main container component for the split view layout.
+ * ScrollbackContainer - Main container component for the scrollback mode layout.
  *
  * Layout:
  * - Top: Scrollable history pane (min 3 rows)
@@ -70,7 +69,7 @@ export interface SplitViewContainerOptions {
  * - If autocomplete is showing, Escape dismisses it instead of closing the view
  * - onEscape only fires when autocomplete is NOT showing
  */
-export class SplitViewContainer implements Component {
+export class ScrollbackContainer implements Component {
 	private currentFocus: FocusState = "history";
 	private historyPane: HistoryPane;
 	private editor: CustomEditor;
@@ -85,7 +84,7 @@ export class SplitViewContainer implements Component {
 		editor: CustomEditor,
 		tui: TUI,
 		done: (result: string | null) => void,
-		options: SplitViewContainerOptions
+		options: ScrollbackContainerOptions
 	) {
 		this.historyPane = historyPane;
 		this.editor = editor;
@@ -129,7 +128,7 @@ export class SplitViewContainer implements Component {
 	}
 
 	/**
-	 * Render the split view layout.
+	 * Render the scrollback mode layout.
 	 *
 	 * Calculates dynamic heights:
 	 * - Total height = terminal.rows - 1 (footer is external)
@@ -178,17 +177,17 @@ export class SplitViewContainer implements Component {
 	 * Handle keyboard input.
 	 *
 	 * Global (either pane):
-	 * - Ctrl+Shift+H: Dismiss split view (toggle hotkey)
+	 * - Ctrl+Shift+H: Dismiss scrollback mode (toggle hotkey)
 	 * - Tab: Toggle focus between history and editor
 	 *
 	 * History focused:
-	 * - Escape/Enter: Dismiss split view
+	 * - Escape/Enter: Dismiss scrollback mode
 	 * - Up/Down/PgUp/PgDn: Scroll history
 	 *
 	 * Editor focused:
 	 * - All input delegated to CustomEditor
 	 * - Escape: Handled by editor.onEscape (dismisses autocomplete first if showing)
-	 * - Enter: Handled by editor.onSubmit (dismisses split view)
+	 * - Enter: Handled by editor.onSubmit (dismisses scrollback mode)
 	 */
 	handleInput(data: string): void {
 		// Ctrl+Shift+H dismisses from either pane (toggle hotkey)
@@ -206,7 +205,7 @@ export class SplitViewContainer implements Component {
 
 		// Route input based on focus
 		if (this.currentFocus === "history") {
-			// Escape or Enter in history pane dismisses split view
+			// Escape or Enter in history pane dismisses scrollback mode
 			if (matchesKey(data, Key.escape) || matchesKey(data, Key.enter) || data === "q") {
 				this.done(this.editor.getText());
 				return;

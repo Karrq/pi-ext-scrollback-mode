@@ -1,7 +1,7 @@
 {
-  "name": "pi-ext-splitview",
+  "name": "pi-ext-scrollback-mode",
   "version": "0.1.0",
-  "description": "Pi extension - split view mode for browsing conversation history while composing",
+  "description": "Pi extension - scrollback mode for browsing conversation history while composing",
   "type": "module",
   "main": "index.ts",
   "scripts": {
@@ -24,7 +24,7 @@
     "pi-package",
     "pi",
     "extension",
-    "split-view",
+    "scrollback-mode",
     "scrollback",
     "history"
   ],

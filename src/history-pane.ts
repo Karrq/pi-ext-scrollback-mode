@@ -1,8 +1,8 @@
 /**
  * History Pane Component
  *
- * Renders conversation history using pi's own rendering components.
- * Implements viewport-based rendering with keyboard scrolling.
+ * Renders conversation history using pi's rendering components for the
+ * scrollback mode. Implements viewport-based rendering with keyboard scrolling.
  */
 
 import type { Component, TUI, MarkdownTheme } from "@mariozechner/pi-tui";
@@ -151,7 +151,7 @@ export class HistoryPane implements Component {
 	private cwd?: string;
 
 	// Viewport management
-	public viewportHeight: number = 10; // Set by parent SplitViewContainer
+	public viewportHeight: number = 10; // Set by parent ScrollbackContainer
 	private lastWidth: number = 0; // Track width for re-rendering
 	private needsScrollToBottom: boolean = true; // Scroll to bottom on first render
 
