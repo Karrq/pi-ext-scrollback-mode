@@ -155,6 +155,9 @@ export class HistoryPane implements Component {
 	private lastWidth: number = 0; // Track width for re-rendering
 	private needsScrollToBottom: boolean = true; // Scroll to bottom on first render
 
+	// Styling - set by parent to match theme
+	public dimText: (s: string) => string = (s) => `\x1b[2m${s}\x1b[22m`;
+
 	constructor(
 		sessionEntries: SessionEntry[],
 		tui: TUI,
@@ -474,9 +477,9 @@ export class HistoryPane implements Component {
 			}
 		}
 
-		// Calculate the viewport (scrollOffset to scrollOffset + viewportHeight - 1)
-		// Reserve 1 line for scroll indicator
-		const contentHeight = this.viewportHeight - 1;
+		// Calculate the viewport
+		// Reserve 2 lines: 1 for border separator, 1 for scroll indicator
+		const contentHeight = this.viewportHeight - 2;
 		const maxScrollOffset = Math.max(0, this.totalLines - contentHeight);
 
 		// Clamp scroll offset
@@ -509,50 +512,101 @@ export class HistoryPane implements Component {
 			viewportLines.push(" ".repeat(width));
 		}
 
-		// Add scroll indicator
+		// Add border separator and scroll indicator
+		const border = this.dimText("─".repeat(width));
 		const indicator = this.renderScrollIndicator(width);
+		viewportLines.push(border);
 		viewportLines.push(indicator);
 
 		return viewportLines;
 	}
 
 	/**
-	 * Render the scroll position indicator
+	 * Render the scroll position indicator with keybind hints
 	 */
 	private renderScrollIndicator(width: number): string {
 		const currentLine = this.scrollOffset + 1; // 1-indexed for display
-		const text = `--- Line ${currentLine}/${this.totalLines} ---`;
+		const leftText = `Line ${currentLine}/${this.totalLines}`;
+		const rightText = `j/k scroll · J/K page · g/G jump · q quit`;
 
-		// Center the indicator
-		const padding = Math.max(0, Math.floor((width - text.length) / 2));
-		const paddedText = " ".repeat(padding) + text;
+		// Check if we have enough width for both left and right text
+		// Minimum: 1 space padding left + leftText + 2 spaces gap + rightText + 1 space padding right
+		const minWidth = leftText.length + rightText.length + 4;
 
-		// Pad to full width
-		return paddedText.padEnd(width, " ");
+		if (width < minWidth) {
+			// Not enough width - only show line counter (left-aligned with 1 space padding)
+			return this.dimText(` ${leftText}`.padEnd(width, " "));
+		}
+
+		// Enough width - show split layout
+		// Left: 1 space + leftText
+		// Right: rightText + 1 space
+		// Middle: fill with spaces
+		const leftPart = ` ${leftText}`;
+		const rightPart = `${rightText} `;
+		const middleSpaces = width - leftPart.length - rightPart.length;
+
+		return this.dimText(leftPart + " ".repeat(Math.max(0, middleSpaces)) + rightPart);
 	}
 
 	/**
 	 * Handle keyboard input for scrolling
 	 */
 	handleInput(data: string): void {
-		const contentHeight = this.viewportHeight - 1; // Reserve 1 line for indicator
+		const contentHeight = this.viewportHeight - 2; // Reserve 2 lines: border + indicator
 		const maxScrollOffset = Math.max(0, this.totalLines - contentHeight);
+		const halfPage = Math.floor(contentHeight / 2);
 
-		if (matchesKey(data, Key.up)) {
-			this.scrollOffset = Math.max(0, this.scrollOffset - 1);
-			this.tui.requestRender();
-		} else if (matchesKey(data, Key.down)) {
-			this.scrollOffset = Math.min(maxScrollOffset, this.scrollOffset + 1);
-			this.tui.requestRender();
-		} else if (matchesKey(data, Key.pageUp)) {
-			const scrollAmount = Math.floor(contentHeight / 2);
-			this.scrollOffset = Math.max(0, this.scrollOffset - scrollAmount);
-			this.tui.requestRender();
-		} else if (matchesKey(data, Key.pageDown)) {
-			const scrollAmount = Math.floor(contentHeight / 2);
-			this.scrollOffset = Math.min(maxScrollOffset, this.scrollOffset + scrollAmount);
-			this.tui.requestRender();
+		// Arrow keys
+		if (matchesKey(data, Key.up) || data === "k") {
+			this.scrollUp(1);
+		} else if (matchesKey(data, Key.down) || data === "j") {
+			this.scrollDown(1, maxScrollOffset);
 		}
+		// Page Up/Down and Shift+K/J (half-page scrolling)
+		else if (matchesKey(data, Key.pageUp) || data === "K") {
+			this.scrollUp(halfPage);
+		} else if (matchesKey(data, Key.pageDown) || data === "J") {
+			this.scrollDown(halfPage, maxScrollOffset);
+		}
+		// Jump to top/bottom
+		else if (data === "g") {
+			this.scrollToTop();
+		} else if (data === "G") {
+			this.scrollToBottomPosition(maxScrollOffset);
+		}
+	}
+
+	/**
+	 * Scroll up by the specified amount
+	 */
+	private scrollUp(amount: number): void {
+		this.scrollOffset = Math.max(0, this.scrollOffset - amount);
+		this.tui.requestRender();
+	}
+
+	/**
+	 * Scroll down by the specified amount
+	 */
+	private scrollDown(amount: number, maxScrollOffset: number): void {
+		this.scrollOffset = Math.min(maxScrollOffset, this.scrollOffset + amount);
+		this.tui.requestRender();
+	}
+
+	/**
+	 * Jump to the top of the history
+	 */
+	private scrollToTop(): void {
+		this.scrollOffset = 0;
+		this.tui.requestRender();
+	}
+
+	/**
+	 * Jump to the bottom of the history
+	 */
+	private scrollToBottomPosition(maxScrollOffset: number): void {
+		this.scrollOffset = maxScrollOffset;
+		this.tui.requestRender();
 	}
 
 	/**
@@ -572,7 +626,7 @@ export class HistoryPane implements Component {
 	 * Scroll to bottom (most recent messages)
 	 */
 	private scrollToBottom(): void {
-		const contentHeight = this.viewportHeight - 1;
+		const contentHeight = this.viewportHeight - 2;
 		this.scrollOffset = Math.max(0, this.totalLines - contentHeight);
 	}
 }

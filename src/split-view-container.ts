@@ -207,17 +207,23 @@ export class SplitViewContainer implements Component {
 		// Route input based on focus
 		if (this.currentFocus === "history") {
 			// Escape or Enter in history pane dismisses split view
-			if (matchesKey(data, Key.escape) || matchesKey(data, Key.enter)) {
+			if (matchesKey(data, Key.escape) || matchesKey(data, Key.enter) || data === "q") {
 				this.done(this.editor.getText());
 				return;
 			}
 
-			// Navigation keys scroll history
+			// Navigation keys scroll history (arrow keys, Page Up/Down, vim keybinds)
 			if (
 				matchesKey(data, Key.up) ||
 				matchesKey(data, Key.down) ||
 				matchesKey(data, Key.pageUp) ||
-				matchesKey(data, Key.pageDown)
+				matchesKey(data, Key.pageDown) ||
+				data === "j" ||
+				data === "k" ||
+				data === "J" ||
+				data === "K" ||
+				data === "g" ||
+				data === "G"
 			) {
 				this.historyPane.handleInput(data);
 			}

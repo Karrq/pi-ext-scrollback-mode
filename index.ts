@@ -75,6 +75,7 @@ export default function splitViewExtension(pi: ExtensionAPI) {
 					false, // hideThinkingBlock
 					ctx.cwd
 				);
+				historyPane.dimText = (text) => theme.fg("borderMuted", text);
 
 				// Create and return split view container
 				return new SplitViewContainer(historyPane, editor, tui, done, {
