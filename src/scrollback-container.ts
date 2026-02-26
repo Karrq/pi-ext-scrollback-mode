@@ -69,6 +69,19 @@ export interface ScrollbackContainerOptions {
  * - If autocomplete is showing, Escape dismisses it instead of closing the view
  * - onEscape only fires when autocomplete is NOT showing
  */
+/**
+ * SGR mouse wheel button codes.
+ * In SGR mode (\x1b[?1006h), wheel events arrive as \x1b[<btn;col;rowM
+ */
+const MOUSE_WHEEL_UP = 64;
+const MOUSE_WHEEL_DOWN = 65;
+
+/** Lines to scroll per mouse wheel tick */
+const MOUSE_SCROLL_LINES = 3;
+
+/** Regex to parse SGR mouse sequences: \x1b[<button;col;row[Mm] */
+const SGR_MOUSE_RE = /^\x1b\[<(\d+);(\d+);(\d+)[Mm]$/;
+
 export class ScrollbackContainer implements Component {
 	private currentFocus: FocusState = "history";
 	private historyPane: HistoryPane;
@@ -89,9 +102,14 @@ export class ScrollbackContainer implements Component {
 		this.historyPane = historyPane;
 		this.editor = editor;
 		this.tui = tui;
-		this.done = done;
 		this.accentBorderColor = options.accentBorderColor;
 		this.dimBorderColor = options.dimBorderColor;
+
+		// Wrap done to disable mouse reporting before exiting
+		this.done = (result: string | null) => {
+			this.disableMouseReporting();
+			done(result);
+		};
 
 		// Set up editor callbacks
 		this.editor.onSubmit = (text: string) => {
@@ -106,6 +124,36 @@ export class ScrollbackContainer implements Component {
 
 		// Update editor border color based on initial focus
 		this.updateBorderColors();
+
+		// Enable mouse reporting for scroll wheel support
+		this.enableMouseReporting();
+	}
+
+	/**
+	 * Enable SGR mouse reporting so we receive scroll wheel events.
+	 * Note: while active, terminal text selection requires holding Shift.
+	 */
+	private enableMouseReporting(): void {
+		process.stdout.write("\x1b[?1000h\x1b[?1006h");
+	}
+
+	/**
+	 * Disable mouse reporting, restoring normal terminal behavior.
+	 */
+	private disableMouseReporting(): void {
+		process.stdout.write("\x1b[?1000l\x1b[?1006l");
+	}
+
+	/**
+	 * Try to parse an SGR mouse sequence. Returns the button code or null.
+	 */
+	private parseMouseWheel(data: string): "up" | "down" | null {
+		const match = data.match(SGR_MOUSE_RE);
+		if (!match) return null;
+		const button = parseInt(match[1], 10);
+		if (button === MOUSE_WHEEL_UP) return "up";
+		if (button === MOUSE_WHEEL_DOWN) return "down";
+		return null;
 	}
 
 	/**
@@ -190,6 +238,17 @@ export class ScrollbackContainer implements Component {
 	 * - Enter: Handled by editor.onSubmit (dismisses scrollback mode)
 	 */
 	handleInput(data: string): void {
+		// Mouse wheel scrolls history regardless of focus
+		const wheel = this.parseMouseWheel(data);
+		if (wheel) {
+			// Synthesize multiple scroll events for smooth scrolling
+			const key = wheel === "up" ? "k" : "j";
+			for (let i = 0; i < MOUSE_SCROLL_LINES; i++) {
+				this.historyPane.handleInput(key);
+			}
+			return;
+		}
+
 		// Ctrl+Shift+H dismisses from either pane (toggle hotkey)
 		if (matchesKey(data, Key.ctrlShift("h"))) {
 			this.done(this.editor.getText());

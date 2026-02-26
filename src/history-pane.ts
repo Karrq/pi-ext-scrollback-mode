@@ -6,7 +6,7 @@
  */
 
 import type { Component, TUI, MarkdownTheme } from "@mariozechner/pi-tui";
-import { matchesKey, Key, Spacer } from "@mariozechner/pi-tui";
+import { matchesKey, Key, Spacer, Text } from "@mariozechner/pi-tui";
 import type { AssistantMessage } from "@mariozechner/pi-ai";
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type {
@@ -18,6 +18,7 @@ import type {
 import {
 	parseSkillBlock,
 	type ParsedSkillBlock,
+	type ToolDefinition,
 	UserMessageComponent,
 	AssistantMessageComponent,
 	ToolExecutionComponent,
@@ -28,6 +29,66 @@ import {
 	CustomMessageComponent,
 	SkillInvocationMessageComponent,
 } from "@mariozechner/pi-coding-agent";
+
+/**
+ * Built-in tool names that ToolExecutionComponent knows how to render natively.
+ * For any tool NOT in this set, we must pass a stub ToolDefinition so that the
+ * generic custom-tool rendering path activates (tool name + raw output).
+ * Without it, neither the built-in nor the custom branch fires and the
+ * component stays as an empty box.
+ */
+const BUILTIN_TOOL_NAMES = new Set(["read", "write", "edit", "bash", "grep", "find", "ls"]);
+
+/** Max lines of output to show when a custom tool result is collapsed. */
+const CUSTOM_TOOL_COLLAPSED_LINES = 5;
+
+/**
+ * Create a stub ToolDefinition for a custom (non-built-in) tool.
+ *
+ * Provides renderCall/renderResult so the ToolExecutionComponent uses
+ * its custom-tool code path with proper expand/collapse behavior:
+ * - renderCall: bold tool name + compact args summary
+ * - renderResult: text output, truncated when collapsed
+ */
+/** Purple fg for the tool name. Uses fg-only reset so Box bg is unaffected. */
+const purple = (text: string) => `\x1b[95m${text}\x1b[39m`;
+
+function createCustomToolStub(toolName: string): ToolDefinition {
+	return {
+		name: toolName,
+		label: toolName,
+		description: "",
+		renderCall: (args: any, theme: any) => {
+			const title = purple(theme.bold(toolName));
+			if (!args || Object.keys(args).length === 0) {
+				return new Text(title, 0, 0);
+			}
+			const argsStr = JSON.stringify(args);
+			return new Text(`${title}\n${argsStr}`, 0, 0);
+		},
+		renderResult: (result: any, options: any, theme: any) => {
+			const textParts = result.content
+				?.filter((c: any) => c.type === "text")
+				.map((c: any) => c.text || "");
+			const text = textParts?.join("\n") || "";
+			if (!text) return new Text("", 0, 0);
+
+			const lines = text.split("\n");
+			const maxLines = options.expanded ? lines.length : CUSTOM_TOOL_COLLAPSED_LINES;
+			const displayLines = lines.slice(0, maxLines);
+			const remaining = lines.length - maxLines;
+
+			let output = displayLines
+				.map((line: string) => theme.fg("toolOutput", line))
+				.join("\n");
+			if (remaining > 0) {
+				output += theme.fg("muted", `\n... (${remaining} more lines)`);
+			}
+
+			return new Text(`\n${output}`, 0, 0);
+		},
+	} as ToolDefinition;
+}
 
 /**
  * Message types from pi-coding-agent (not all are exported in main index)
@@ -387,11 +448,22 @@ export class HistoryPane implements Component {
 					message: AssistantMessage;
 				};
 				const options: ToolExecutionOptions = { showImages: false };
+
+				// For custom (non-built-in) tools, pass a stub ToolDefinition so that
+				// ToolExecutionComponent uses its generic custom-tool rendering path
+				// (bold tool name + raw text output). Without this, neither the built-in
+				// renderer (name not recognized) nor the custom branch (toolDefinition
+				// is falsy) activates, leaving an empty box.
+				const toolName = data.toolCall.name;
+				const toolDefinition = BUILTIN_TOOL_NAMES.has(toolName)
+					? undefined
+					: createCustomToolStub(toolName);
+
 				const component = new ToolExecutionComponent(
-					data.toolCall.name,
+					toolName,
 					data.toolCall.arguments,
 					options,
-					undefined, // ToolDefinition - pass undefined as per TODO decision
+					toolDefinition,
 					this.tui,
 					this.cwd
 				);

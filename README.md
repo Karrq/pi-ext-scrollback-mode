@@ -26,6 +26,9 @@ pi -e /path/to/pi-ext-scrollback-mode
 |-----|--------|
 | `Ctrl+Shift+H` | Toggle scrollback mode |
 | `Tab` | Switch focus between history and editor |
+| `Scroll wheel` | Scroll history up/down (3 lines per tick) |
+
+Mouse wheel scrolling works regardless of which pane is focused, so you can scroll through history while typing in the editor. This uses SGR mouse reporting, which means normal text selection in the terminal requires holding `Shift` while scrollback mode is active.
 
 ### History pane
 
